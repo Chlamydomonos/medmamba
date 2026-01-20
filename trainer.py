@@ -207,3 +207,7 @@ def main():
     print(f'Tensorboard logs saved to: {tensorboard_dir}')
 
     writer.close()
+
+
+if __name__ == '__main__':
+    main()
