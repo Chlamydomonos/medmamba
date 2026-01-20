@@ -1,5 +1,4 @@
 import os
-import sys
 import json
 import argparse
 from datetime import datetime
@@ -70,8 +69,7 @@ def main():
         log_name = args.log_name
 
     log_path = os.path.join(model_output_dir, log_name)
-    log = open(log_path, "a")
-    sys.stdout = log
+    log_file = open(log_path, "a")
 
     # Setup tensorboard
     tensorboard_dir = os.path.join(model_output_dir, 'tensorboard')
@@ -152,7 +150,7 @@ def main():
         # Training phase
         net.train()
         running_loss = 0.0
-        train_bar = tqdm(train_loader, file=sys.stdout)
+        train_bar = tqdm(train_loader)
 
         for step, data in enumerate(train_bar):
             images, labels = data
@@ -172,7 +170,7 @@ def main():
         net.eval()
         acc = 0.0
         with torch.no_grad():
-            train_bar = tqdm(train_loader, file=sys.stdout, desc="Evaluating")
+            train_bar = tqdm(train_loader, desc="Evaluating")
             for train_data in train_bar:
                 train_images, train_labels = train_data
                 outputs = net(train_images.to(device))
@@ -187,14 +185,22 @@ def main():
         writer.add_scalar('Accuracy/train', train_accurate, epoch + 1)
         writer.add_scalar('Learning_rate', optimizer.param_groups[0]['lr'], epoch + 1)
 
-        print('[epoch %d] train_loss: %.3f  train_accuracy: %.3f' %
-              (epoch + 1, avg_loss, train_accurate))
+        epoch_log = '[epoch %d] train_loss: %.3f  train_accuracy: %.3f' % (
+            epoch + 1, avg_loss, train_accurate)
+        print(epoch_log)
+
+        # Write epoch summary to log file
+        log_file.write(epoch_log + '\n')
+        log_file.flush()
 
         # Save best model
         if train_accurate > best_acc:
             best_acc = train_accurate
             torch.save(net.state_dict(), best_save_path)
-            print(f"Saved best model with accuracy: {best_acc:.3f}")
+            best_msg = f"Saved best model with accuracy: {best_acc:.3f}"
+            print(best_msg)
+            log_file.write(best_msg + '\n')
+            log_file.flush()
 
     # Save last epoch model
     torch.save(net.state_dict(), last_save_path)
@@ -205,6 +211,15 @@ def main():
     print(f'Best model saved to: {best_save_path}')
     print(f'Last model saved to: {last_save_path}')
     print(f'Tensorboard logs saved to: {tensorboard_dir}')
+
+    # Write final summary to log file
+    log_file.write("-" * 50 + '\n')
+    log_file.write('Finished Training\n')
+    log_file.write(f'Best training accuracy: {best_acc:.3f}\n')
+    log_file.write(f'Best model saved to: {best_save_path}\n')
+    log_file.write(f'Last model saved to: {last_save_path}\n')
+    log_file.write(f'Tensorboard logs saved to: {tensorboard_dir}\n')
+    log_file.close()
 
     writer.close()
 
